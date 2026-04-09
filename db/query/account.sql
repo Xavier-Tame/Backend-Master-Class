@@ -13,6 +13,18 @@ FROM
   accounts
 WHERE
   id = $1
+  AND closed_at IS NULL
+LIMIT
+  1;
+
+-- name: GetDeletedAccount :one
+SELECT
+  *
+FROM
+  accounts
+WHERE
+  id = $1
+  AND closed_at IS NOT NULL
 LIMIT
   1;
 
@@ -23,6 +35,7 @@ FROM
   accounts
 WHERE
   id = $1
+  AND closed_at IS NULL
 LIMIT
   1
 FOR NO KEY UPDATE;
@@ -32,6 +45,8 @@ SELECT
   *
 FROM
   accounts
+WHERE
+  closed_at IS NULL
 ORDER BY
   id
 LIMIT
@@ -45,6 +60,7 @@ SET
   balance = $2
 WHERE
   id = $1
+  AND closed_at IS NULL
 RETURNING
   *;
 
@@ -54,10 +70,14 @@ SET
   balance = balance + sqlc.arg (amount)
 WHERE
   id = sqlc.arg (id)
+  AND closed_at IS NULL
 RETURNING
   *;
 
 -- name: DeleteAccount :exec
-DELETE FROM accounts
+UPDATE accounts
+SET
+  closed_at = now()
 WHERE
-  id = $1;
+  id = $1
+  AND closed_at IS NULL;

@@ -15,8 +15,9 @@ SET
   balance = balance + $1
 WHERE
   id = $2
+  AND closed_at IS NULL
 RETURNING
-  id, owner, balance, currency, created_at
+  id, owner, balance, currency, created_at, closed_at
 `
 
 type AddAccountBalanceParams struct {
@@ -33,6 +34,7 @@ func (q *Queries) AddAccountBalance(ctx context.Context, arg AddAccountBalancePa
 		&i.Balance,
 		&i.Currency,
 		&i.CreatedAt,
+		&i.ClosedAt,
 	)
 	return i, err
 }
@@ -43,7 +45,7 @@ INSERT INTO
 VALUES
   ($1, $2, $3)
 RETURNING
-  id, owner, balance, currency, created_at
+  id, owner, balance, currency, created_at, closed_at
 `
 
 type CreateAccountParams struct {
@@ -61,14 +63,18 @@ func (q *Queries) CreateAccount(ctx context.Context, arg CreateAccountParams) (A
 		&i.Balance,
 		&i.Currency,
 		&i.CreatedAt,
+		&i.ClosedAt,
 	)
 	return i, err
 }
 
 const deleteAccount = `-- name: DeleteAccount :exec
-DELETE FROM accounts
+UPDATE accounts
+SET
+  closed_at = now()
 WHERE
   id = $1
+  AND closed_at IS NULL
 `
 
 func (q *Queries) DeleteAccount(ctx context.Context, id int64) error {
@@ -78,11 +84,12 @@ func (q *Queries) DeleteAccount(ctx context.Context, id int64) error {
 
 const getAccount = `-- name: GetAccount :one
 SELECT
-  id, owner, balance, currency, created_at
+  id, owner, balance, currency, created_at, closed_at
 FROM
   accounts
 WHERE
   id = $1
+  AND closed_at IS NULL
 LIMIT
   1
 `
@@ -96,17 +103,19 @@ func (q *Queries) GetAccount(ctx context.Context, id int64) (Account, error) {
 		&i.Balance,
 		&i.Currency,
 		&i.CreatedAt,
+		&i.ClosedAt,
 	)
 	return i, err
 }
 
 const getAccountForUpdate = `-- name: GetAccountForUpdate :one
 SELECT
-  id, owner, balance, currency, created_at
+  id, owner, balance, currency, created_at, closed_at
 FROM
   accounts
 WHERE
   id = $1
+  AND closed_at IS NULL
 LIMIT
   1
 FOR NO KEY UPDATE
@@ -121,15 +130,44 @@ func (q *Queries) GetAccountForUpdate(ctx context.Context, id int64) (Account, e
 		&i.Balance,
 		&i.Currency,
 		&i.CreatedAt,
+		&i.ClosedAt,
+	)
+	return i, err
+}
+
+const getDeletedAccount = `-- name: GetDeletedAccount :one
+SELECT
+  id, owner, balance, currency, created_at, closed_at
+FROM
+  accounts
+WHERE
+  id = $1
+  AND closed_at IS NOT NULL
+LIMIT
+  1
+`
+
+func (q *Queries) GetDeletedAccount(ctx context.Context, id int64) (Account, error) {
+	row := q.db.QueryRowContext(ctx, getDeletedAccount, id)
+	var i Account
+	err := row.Scan(
+		&i.ID,
+		&i.Owner,
+		&i.Balance,
+		&i.Currency,
+		&i.CreatedAt,
+		&i.ClosedAt,
 	)
 	return i, err
 }
 
 const listAccounts = `-- name: ListAccounts :many
 SELECT
-  id, owner, balance, currency, created_at
+  id, owner, balance, currency, created_at, closed_at
 FROM
   accounts
+WHERE
+  closed_at IS NULL
 ORDER BY
   id
 LIMIT
@@ -149,7 +187,7 @@ func (q *Queries) ListAccounts(ctx context.Context, arg ListAccountsParams) ([]A
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Account
+	items := []Account{}
 	for rows.Next() {
 		var i Account
 		if err := rows.Scan(
@@ -158,6 +196,7 @@ func (q *Queries) ListAccounts(ctx context.Context, arg ListAccountsParams) ([]A
 			&i.Balance,
 			&i.Currency,
 			&i.CreatedAt,
+			&i.ClosedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -178,8 +217,9 @@ SET
   balance = $2
 WHERE
   id = $1
+  AND closed_at IS NULL
 RETURNING
-  id, owner, balance, currency, created_at
+  id, owner, balance, currency, created_at, closed_at
 `
 
 type UpdateAccountParams struct {
@@ -196,6 +236,7 @@ func (q *Queries) UpdateAccount(ctx context.Context, arg UpdateAccountParams) (A
 		&i.Balance,
 		&i.Currency,
 		&i.CreatedAt,
+		&i.ClosedAt,
 	)
 	return i, err
 }
