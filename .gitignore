@@ -28,4 +28,3 @@ go.work.sum
 # .idea/
 # .vscode/
 app.env
-*.env
