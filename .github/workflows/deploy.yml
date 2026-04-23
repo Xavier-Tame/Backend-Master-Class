@@ -81,4 +81,4 @@ jobs:
         run: kubectl rollout restart deployment/simple-bank-api
 
       - name: Wait for rollout to complete
-        run: kubectl rollout status deployment/simple-bank-api --timeout=120s
+        run: kubectl rollout status deployment/simple-bank-api
