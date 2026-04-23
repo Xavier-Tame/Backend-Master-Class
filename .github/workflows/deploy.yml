@@ -64,27 +64,13 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: Set up kubectl
-        uses: azure/setup-kubectl@v5
-
-      - name: Configure kubeconfig
-        run: |
-          mkdir -p $HOME/.kube
-          echo "${{ secrets.KUBE_CA_CERT }}" | base64 --decode > /tmp/ca.crt
-          kubectl config set-cluster simple_bank \
-            --server="${{ secrets.KUBE_SERVER }}" \
-            --certificate-authority=/tmp/ca.crt
-
-          kubectl config set-credentials github-actions-deployer \
-            --token="${{ secrets.KUBE_TOKEN }}"
-
-          kubectl config set-context deploy-context \
-            --cluster=simple_bank \
-            --user=github-actions-deployer \
-
-          kubectl config use-context deploy-context
+        uses: tale/kubectl-action@v1
+        with:
+          base64-kube-config: ${{ secrets.KUBE_CONFIG }}
+          kubectl-version: v1.34.1
 
       - name: Apply all K8s manifests
-        run: kubectl apply -f k8s/ --validate=false
+        run: kubectl apply -f k8s/
 
       - name: Update image to SHA tag
         run: |

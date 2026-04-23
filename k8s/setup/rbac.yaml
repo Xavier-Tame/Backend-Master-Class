@@ -1,0 +1,66 @@
+# ServiceAccount
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: github-cli
+  namespace: default
+---
+# Role - scoped only to what's needed
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: default
+  name: github-cli-role
+rules:
+  # Deployments - allow apply/update/patch
+  # Covers: pull image, change replicas, set container port
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "create", "update", "patch"]
+
+  # Cert-Manager Issuers - allow apply/update/patch
+  # Covers: setup issuer.yaml with Traefik + Let's Encrypt
+  - apiGroups: ["cert-manager.io"]
+    resources: ["issuers", "clusterissuers"]
+    verbs: ["get", "list", "create", "update", "patch"]
+
+  # Ingress - allow apply/update/patch
+  # Covers: setup ingress.yaml on port 80 with Traefik + Let's Encrypt
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["get", "list", "create", "update", "patch"]
+
+  # Ingress class (Traefik) - read-only, needed to reference the IngressClass
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingressclasses"]
+    verbs: ["get", "list"]
+
+  # Services - allow apply/update/patch
+  # Needed to expose deployments (port 80 routing via Traefik)
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "list", "create", "update", "patch"]
+
+  # Secrets - allow apply/update/patch
+  # Needed for Let's Encrypt TLS cert secrets and image pull secrets
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "create", "update", "patch"]
+
+  # NOTE: RBAC resources (roles, rolebindings, clusterroles, etc.)
+  # are intentionally EXCLUDED — this role cannot read or modify RBAC.
+---
+# RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: github-cli-binding
+  namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: github-cli-role
+subjects:
+  - kind: ServiceAccount
+    name: github-cli
+    namespace: default
