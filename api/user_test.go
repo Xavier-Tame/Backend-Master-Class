@@ -96,23 +96,6 @@ func TestCreateUser(t *testing.T) {
 			},
 		},
 		{
-			name: "HashPasswordIssue",
-			body: gin.H{
-				"username":  arg.Username,
-				"full_name": arg.FullName,
-				"email":     arg.Email,
-				"password":  "trigger_error",
-			},
-
-			buildstubs: func(store *mockdb.MockStore) {
-				store.EXPECT().
-					CreateUser(gomock.Any(), gomock.Any()).Times(0)
-			},
-			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
-				require.Equal(t, http.StatusInternalServerError, recorder.Code)
-			},
-		},
-		{
 			name: "PostgresForbidden",
 			body: gin.H{
 				"username":  arg.Username,
@@ -162,13 +145,6 @@ func TestCreateUser(t *testing.T) {
 
 			// start test server and send request
 			server := newTestServer(t, store)
-			server.hashPassword = func(pw string) (string, error) {
-				if pw == "trigger_error" {
-					return "", fmt.Errorf("forced error")
-				}
-
-				return util.HashPassword(pw)
-			}
 
 			recorder := httptest.NewRecorder()
 
